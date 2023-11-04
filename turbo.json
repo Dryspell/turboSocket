@@ -12,5 +12,5 @@
 			"persistent": true
 		}
 	},
-	"globalEnv": ["SOCKET_SERVER_URL"]
+	"globalEnv": ["SOCKET_SERVER_URL", "NODE_ENV"]
 }
