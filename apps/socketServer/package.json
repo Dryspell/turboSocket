@@ -1,7 +1,9 @@
 {
 	"name": "socket-server",
+	"main": "index.ts",
 	"scripts": {
-		"dev": "npx nodemon index.ts"
+		"dev": "npx nodemon index.ts",
+		"build": "vite build"
 	},
 	"dependencies": {
 		"socket.io": "^4.7.2"
