@@ -1,20 +1,13 @@
 {
-	"name": "socketserver",
-	"private": true,
-	"version": "0.0.0",
-	"type": "module",
+	"name": "socket-server",
 	"scripts": {
-		"build": "vite build",
-		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-		"deploy": "vercel deploy dist --team=turborepo --confirm",
-		"dev": "vite --host 0.0.0.0 --port 3003 --clearScreen false",
-		"lint": "tsc --noEmit && eslint \"src/**/*.ts*\""
-	},
-	"devDependencies": {
-		"typescript": "^5.0.2",
-		"vite": "^4.4.5"
+		"dev": "npx nodemon index.ts"
 	},
 	"dependencies": {
 		"socket.io": "^4.7.2"
+	},
+	"devDependencies": {
+		"nodemon": "^3.0.1",
+		"ts-node": "^10.2.1"
 	}
 }
