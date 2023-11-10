@@ -1,15 +1,3 @@
-interface EmojiUsage {
-  emoji: string;
-  usedBy: string[];
-}
-interface Message {
-  author?: string;
-  content?: string;
-  timeserial?: string;
-  reactions?: EmojiUsage[];
-  timeStamp?: Date;
-}
-
 const defaultMessages: Message[] = [
   {
     author: "Charles Lovelace",
@@ -63,4 +51,3 @@ const defaultMessages: Message[] = [
 ];
 
 export default defaultMessages;
-export type { Message, EmojiUsage };

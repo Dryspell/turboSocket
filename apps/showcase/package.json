@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^0.3.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
     "@heroicons/react": "^2.0.18",
+    "@mui/material": "^5.14.17",
     "@planetscale/database": "^1.11.0",
     "@t3-oss/env-nextjs": "^0.7.0",
     "@tanstack/react-query": "^4.32.6",
