@@ -8,6 +8,7 @@ import { Types } from "ably";
 
 import styles from "./styles.module.css";
 import ChatMessage from "./ChatMessage";
+import { Box, Container } from "@mui/material";
 
 export const ADD_REACTION_EVENT = "add-reaction";
 export const REMOVE_REACTION_EVENT = "remove-reaction";
@@ -22,42 +23,67 @@ const sendMessage = (channel: Types.RealtimeChannelPromise) => {
 };
 
 // 💡 Keep track of used emojis 💡
-const updateEmojiCollection = (
-  emoji: string,
-  clientId: string,
-  reactionEvent: string,
-  usedEmojiCollection: EmojiUsage[],
+export const updateEmojiCollection = (
+  reaction: Reaction,
+  chatMessages: Message[],
+  setChatMessages: React.Dispatch<React.SetStateAction<Message[]>>,
 ) => {
-  const userReactions = usedEmojiCollection.find((emj) => emj.emoji === emoji);
+  const targetMessage = chatMessages.find(
+    (message) =>
+      message.timeserial === reaction.data.extras.reference.timeserial,
+  );
+  if (!targetMessage) {
+    console.error(
+      `Message with timeserial ${reaction.data.extras.reference.timeserial} not found.`,
+    );
+    return;
+  }
+  const usedEmojiCollection = [...(targetMessage.reactions || [])];
+  const userReactions = usedEmojiCollection.find(
+    (emj) => emj.emoji === reaction.data.body,
+  );
 
-  switch (reactionEvent) {
+  switch (reaction.name) {
     case ADD_REACTION_EVENT:
       if (userReactions) {
-        if (!userReactions.usedBy.includes(clientId)) {
-          userReactions.usedBy.push(clientId);
+        if (!userReactions.usedBy.includes(reaction.clientId)) {
+          userReactions.usedBy.push(reaction.clientId);
         }
       } else {
-        const emojiUse: EmojiUsage = { usedBy: [clientId], emoji: emoji };
+        const emojiUse: EmojiUsage = {
+          usedBy: [reaction.clientId],
+          emoji: reaction.data.body,
+        };
         usedEmojiCollection.push(emojiUse);
       }
       break;
     case REMOVE_REACTION_EVENT:
-      if (userReactions && userReactions.usedBy.includes(clientId)) {
-        userReactions.usedBy.splice(userReactions.usedBy.indexOf(clientId), 1);
+      if (userReactions && userReactions.usedBy.includes(reaction.clientId)) {
+        userReactions.usedBy.splice(
+          userReactions.usedBy.indexOf(reaction.clientId),
+          1,
+        );
         usedEmojiCollection[usedEmojiCollection.indexOf(userReactions)] =
           userReactions;
       }
       break;
   }
-  return usedEmojiCollection;
+  setChatMessages((chatMessages) => [
+    ...chatMessages.splice(0, chatMessages.indexOf(targetMessage)),
+    {
+      ...targetMessage,
+      reactions: usedEmojiCollection,
+    },
+    ...chatMessages.splice(chatMessages.indexOf(targetMessage) + 1),
+  ]);
 };
 
 // 💡 Update current chat message and its reactions leveraging Ably channel history 💡
 const updateMessageFromHistory = (
   messageIndex: number,
   history: Types.PaginatedResult<Types.Message>,
-  setChatMessage: React.Dispatch<React.SetStateAction<Message>>,
-  usedEmojiCollection: EmojiUsage[],
+  chatMessages: Message[],
+  setChatMessages: React.Dispatch<React.SetStateAction<Message[]>>,
 ) => {
   const lastPublishedMessage = history?.items[messageIndex];
 
@@ -68,26 +94,30 @@ const updateMessageFromHistory = (
       const client = history?.items[i]?.clientId;
       const event = history?.items[i]?.name;
       if (!emoji || !client || !event) continue;
+      const targetMessage = chatMessages.find(
+        (message) =>
+          message.timeserial ===
+          history?.items[i]?.data.extras.reference.timeserial,
+      );
+      if (!targetMessage) continue;
 
-      if (usedEmojiCollection.length > 0) {
-        for (const usage of usedEmojiCollection) {
-          updateEmojiCollection(emoji, client, event, usedEmojiCollection);
+      if ((targetMessage?.reactions || []).length > 0) {
+        for (const usage of targetMessage?.reactions!) {
+          updateEmojiCollection(
+            history?.items[i]!,
+            chatMessages,
+            setChatMessages,
+          );
         }
       } else {
-        const emojiUse: EmojiUsage = { usedBy: [client], emoji: emoji };
-        usedEmojiCollection.push(emojiUse);
+        updateEmojiCollection(
+          history?.items[i]!,
+          chatMessages,
+          setChatMessages,
+        );
       }
     }
   }
-
-  // 💡 Update chat message 💡
-  setChatMessage({
-    author: lastPublishedMessage?.data.author,
-    content: lastPublishedMessage?.data.content,
-    timeserial: lastPublishedMessage?.id,
-    reactions: usedEmojiCollection,
-    timeStamp: new Date(lastPublishedMessage?.timestamp || 0),
-  });
 };
 
 const Chat = ({
@@ -103,9 +133,6 @@ const Chat = ({
 
   // 💡 Include your channel namespace created in Ably for message interactions. In this case, we use "reactions" 💡
   channelName = `trade:${channelName}`;
-  let usedEmojiCollection: EmojiUsage[] = [];
-
-  const [chatMessage, setChatMessage] = useState<Message>({});
 
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
@@ -131,77 +158,38 @@ const Chat = ({
               timeStamp: new Date(msg.timestamp),
             },
           ]);
-
-          // 💡 Reset emoji reactions when a new message is received 💡
-          usedEmojiCollection = [];
-          setChatMessage({
-            author: msg.data.author,
-            content: msg.data.content,
-            timeserial: msg.id,
-            timeStamp: new Date(msg.timestamp),
-          });
           break;
+
         case REMOVE_REACTION_EVENT:
           // 💡 Remove emoji reaction from chat message 💡
-          const msgReactions = updateEmojiCollection(
-            msg.data.body,
-            msg.clientId,
-            msg.name,
-            usedEmojiCollection,
+          updateEmojiCollection(
+            //@ts-ignore
+            msg,
+            chatMessages,
+            setChatMessages,
           );
-          setChatMessage((chatMessage) => ({
-            ...chatMessage,
-            reactions: msgReactions,
-          }));
           break;
       }
     },
   );
 
-  // 💡 Subscribe to emoji reactions for a message using the message timeserial 💡
-  const getMessageReactions = () => {
-    channel.subscribe(
-      {
-        name: ADD_REACTION_EVENT,
-        refTimeserial: chatMessage.timeserial,
-      },
-      (reaction: {
-        data: { body: string };
-        clientId: string;
-        name: string;
-      }) => {
-        // 💡 Update current chat message with its reaction(s) 💡
-        const msgReactions = updateEmojiCollection(
-          reaction.data.body,
-          reaction.clientId,
-          reaction.name,
-          usedEmojiCollection,
-        );
-        setChatMessage((chatMessage) => ({
-          ...chatMessage,
-          reactions: msgReactions,
-        }));
-      },
-    );
-  };
-
   useEffect(() => {
-    // 💡 Subscribe to message reactions 💡
-    getMessageReactions();
-
     // 💡 Keep last published message and reactions using Ably channel history 💡
     channel.history(
       (err: any, result: Types.PaginatedResult<Types.Message>) => {
         console.log(result);
         setChatMessages(
-          result.items.map((item) => ({
-            author: item.data.author,
-            content: item.data.content,
-            timeserial: item.id,
-            reactions: [],
-            timeStamp: new Date(item.timestamp || 0),
-          })),
+          result.items
+            .filter((item) => item.data.author)
+            .map((item) => ({
+              author: item.data.author,
+              content: item.data.content,
+              timeserial: item.id,
+              reactions: [],
+              timeStamp: new Date(item.timestamp || 0),
+            })),
         );
+
         // Get index of last sent message from history
         const lastPublishedMessageIndex: any = result?.items.findIndex(
           (message) => message.name == SEND_EVENT,
@@ -211,8 +199,8 @@ const Chat = ({
           updateMessageFromHistory(
             lastPublishedMessageIndex,
             result!,
-            setChatMessage,
-            usedEmojiCollection,
+            chatMessages,
+            setChatMessages,
           );
         } else {
           // 💡 Load new random message when channel has no history 💡
@@ -223,45 +211,63 @@ const Chat = ({
   }, []);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.uiWrapper}>
-        <div className={styles.instructions}>
-          <p>
-            Open this page in a few windows and add a reaction to the message to
-            see it update everywhere.
-          </p>
-        </div>
-
-        {/* Display default chat message */}
-        {chatMessage.author ? (
-          <ChatMessage
-            message={chatMessage}
-            clientId={clientId}
-            channel={channel}
-          />
-        ) : null}
-
+    <Container
+      sx={{
+        alignItems: "center",
+        marginY: 2,
+      }}
+    >
+      <div className={styles.instructions}>
+        <p>
+          Open this page in a few windows and add a reaction to the message to
+          see it update everywhere.
+        </p>
+      </div>
+      <Box
+        sx={{
+          margin: "auto",
+          width: "600px",
+          height: "600px",
+          marginY: 2,
+          overflowY: "auto",
+          scrollbarWidth: "thin",
+          "&::-webkit-scrollbar": {
+            width: "0.4em",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "#f1f1f1",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: "#888",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            background: "#555",
+          },
+        }}
+      >
         {chatMessages.map((message, index) => (
           <ChatMessage
             key={index}
             message={message}
             clientId={clientId}
             channel={channel}
+            chatMessages={chatMessages}
+            setChatMessages={setChatMessages}
           />
         ))}
+      </Box>
 
-        {/* Load new chat message */}
-        <div className={styles.newMessage}>
-          <button
-            className={styles.newMessageButton}
-            onClick={() => sendMessage(channel)}
-          >
-            <ArrowPathIcon className={styles.newMessageButtonIcon} />
-            <span className={styles.newMessageButtonText}>New message</span>
-          </button>
-        </div>
+      {/* Load new chat message */}
+      <div className={styles.newMessage}>
+        <button
+          className={styles.newMessageButton}
+          onClick={() => sendMessage(channel)}
+        >
+          <ArrowPathIcon className={styles.newMessageButtonIcon} />
+          <span className={styles.newMessageButtonText}>New message</span>
+        </button>
       </div>
-    </div>
+    </Container>
   );
 };
 

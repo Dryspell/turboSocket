@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import EmojiDisplay from "./EmojiDisplay";
 import styles from "./styles.module.css";
 import { Types } from "ably";
-import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT } from "./page";
+import {
+  ADD_REACTION_EVENT,
+  REMOVE_REACTION_EVENT,
+  updateEmojiCollection,
+} from "./page";
 import { FaceSmileIcon } from "@heroicons/react/24/solid";
+import { useChannel } from "ably/react";
 
 const emojis = ["😀", "❤️", "👋", "😹", "😡", "👏"];
 
@@ -51,12 +56,43 @@ const sendMessageReaction = (
 export default function ChatMessage(props: {
   message: Message;
   clientId: string;
-  channel: Types.RealtimeChannelPromise;
+  channel: ReturnType<typeof useChannel>["channel"];
+  chatMessages: Message[];
+  setChatMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }) {
-  const { message, clientId, channel } = props;
+  const { message, clientId, channel, chatMessages, setChatMessages } = props;
 
   const [addEmoji, setAddEmoji] = useState(true);
   const [showEmojiList, setShowEmojiList] = useState(false);
+
+  // 💡 Subscribe to emoji reactions for a message using the message timeserial 💡
+  const getMessageReactions = () => {
+    channel.subscribe(
+      {
+        name: ADD_REACTION_EVENT,
+        refTimeserial: message.timeserial,
+      },
+      (reaction: {
+        data: {
+          body: string;
+          extras: {
+            reference: { type: "com.ably.reaction"; timeserial: string };
+          };
+        };
+        clientId: string;
+        name: string;
+      }) => {
+        console.log({ reaction });
+        // 💡 Update current chat message with its reaction(s)💡
+
+        updateEmojiCollection(reaction, chatMessages, setChatMessages);
+      },
+    );
+  };
+
+  useEffect(() => {
+    getMessageReactions();
+  }, []);
 
   return (
     <div className={styles.author}>

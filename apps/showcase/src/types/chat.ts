@@ -10,3 +10,14 @@ interface Message {
   reactions?: EmojiUsage[];
   timeStamp?: Date;
 }
+
+interface Reaction {
+  data: {
+    body: string;
+    extras: {
+      reference: { type: "com.ably.reaction"; timeserial: string };
+    };
+  };
+  clientId: string;
+  name: string;
+}
