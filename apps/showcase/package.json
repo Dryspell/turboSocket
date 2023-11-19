@@ -56,5 +56,8 @@
   "ct3aMetadata": {
     "initVersion": "7.23.1"
   },
-  "packageManager": "npm@9.8.1"
+  "packageManager": "npm@9.8.1",
+  "optionalDependencies": {
+    "bufferutil": "^4.0.8"
+  }
 }

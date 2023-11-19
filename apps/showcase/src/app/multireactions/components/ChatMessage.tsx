@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import EmojiDisplay from "./EmojiDisplay";
-import styles from "./styles.module.css";
+import styles from "../styles.module.css";
 import { Types } from "ably";
-import {
-  ADD_REACTION_EVENT,
-  REMOVE_REACTION_EVENT,
-  updateEmojiCollection,
-} from "./page";
+import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT } from "../page";
 import { FaceSmileIcon } from "@heroicons/react/24/solid";
 import { useChannel } from "ably/react";
+import { Message } from "~/types/chat";
+import {
+  addRemoveReactionByEvent,
+  updateEmojiCollection,
+} from "../utils/utils";
 
 const emojis = ["😀", "❤️", "👋", "😹", "😡", "👏"];
 
@@ -21,36 +22,32 @@ const formatChatMessageTime = (timestamp: Date) => {
   return `${hour}:${minutes}`;
 };
 
-// 💡 Increase or decrease emoji count on click on existing emoji 💡
-const handleEmojiCount = (
-  emoji: string,
-  timeserial: any,
-  addEmoji: boolean,
-  setAddEmoji: React.Dispatch<React.SetStateAction<boolean>>,
-  channel: Types.RealtimeChannelPromise,
-  setShowEmojiList: React.Dispatch<React.SetStateAction<boolean>>,
-) => {
-  const emojiEvent = addEmoji ? ADD_REACTION_EVENT : REMOVE_REACTION_EVENT;
-  setAddEmoji(!addEmoji);
-  sendMessageReaction(emoji, timeserial, emojiEvent, channel, setShowEmojiList);
-};
-
 // 💡 Publish emoji reaction for a message using the chat message timeserial 💡
 const sendMessageReaction = (
   emoji: string,
-  timeserial: any,
-  reactionEvent: string,
+  timeserial: string,
+  reactionEventType: typeof ADD_REACTION_EVENT | typeof REMOVE_REACTION_EVENT,
   channel: Types.RealtimeChannelPromise,
   setShowEmojiList: React.Dispatch<React.SetStateAction<boolean>>,
+  clientId: string,
+  chatMessages: Message[],
+  setChatMessages: React.Dispatch<React.SetStateAction<Message[]>>,
 ) => {
-  channel.publish(reactionEvent, {
-    body: emoji,
-    extras: {
-      reference: { type: "com.ably.reaction", timeserial },
+  const reactionEvent = {
+    name: reactionEventType,
+    clientId,
+    data: {
+      body: emoji,
+      extras: {
+        reference: { type: "com.ably.reaction" as const, timeserial },
+      },
     },
-  });
-  setShowEmojiList(false);
-  console.log(`Sent reaction: ${emoji}`);
+  };
+  channel.publish(reactionEventType, reactionEvent.data);
+  setShowEmojiList((prev) => false);
+  updateEmojiCollection(reactionEvent, chatMessages, setChatMessages);
+
+  console.log(`${reactionEventType}: ${emoji}`);
 };
 
 export default function ChatMessage(props: {
@@ -62,37 +59,7 @@ export default function ChatMessage(props: {
 }) {
   const { message, clientId, channel, chatMessages, setChatMessages } = props;
 
-  const [addEmoji, setAddEmoji] = useState(true);
   const [showEmojiList, setShowEmojiList] = useState(false);
-
-  // 💡 Subscribe to emoji reactions for a message using the message timeserial 💡
-  const getMessageReactions = () => {
-    channel.subscribe(
-      {
-        name: ADD_REACTION_EVENT,
-        refTimeserial: message.timeserial,
-      },
-      (reaction: {
-        data: {
-          body: string;
-          extras: {
-            reference: { type: "com.ably.reaction"; timeserial: string };
-          };
-        };
-        clientId: string;
-        name: string;
-      }) => {
-        console.log({ reaction });
-        // 💡 Update current chat message with its reaction(s)💡
-
-        updateEmojiCollection(reaction, chatMessages, setChatMessages);
-      },
-    );
-  };
-
-  useEffect(() => {
-    getMessageReactions();
-  }, []);
 
   return (
     <div className={styles.author}>
@@ -122,16 +89,21 @@ export default function ChatMessage(props: {
                       ? styles.emojiListItemBlue
                       : styles.emojiListItemSlate
                   }`}
-                  onClick={() =>
-                    handleEmojiCount(
+                  onClick={() => {
+                    const reactionEventType = reaction.usedBy.includes(clientId)
+                      ? REMOVE_REACTION_EVENT
+                      : ADD_REACTION_EVENT;
+                    sendMessageReaction(
                       reaction.emoji,
-                      message.timeserial,
-                      addEmoji,
-                      setAddEmoji,
+                      message.id,
+                      reactionEventType,
                       channel,
                       setShowEmojiList,
-                    )
-                  }
+                      clientId,
+                      chatMessages,
+                      setChatMessages,
+                    );
+                  }}
                 >
                   <EmojiDisplay emoji={reaction.emoji} />
                   <span className={styles.emojiListItemSpan}>
@@ -148,7 +120,7 @@ export default function ChatMessage(props: {
           <div className={styles.control}>
             <FaceSmileIcon
               className={styles.controlIcon}
-              onClick={() => setShowEmojiList(!showEmojiList)}
+              onClick={() => setShowEmojiList((prev) => !prev)}
             />
           </div>
           {showEmojiList ? (
@@ -160,10 +132,13 @@ export default function ChatMessage(props: {
                   onClick={() =>
                     sendMessageReaction(
                       emoji,
-                      message.timeserial,
+                      message.id,
                       ADD_REACTION_EVENT,
                       channel,
                       setShowEmojiList,
+                      clientId,
+                      chatMessages,
+                      setChatMessages,
                     )
                   }
                 >
