@@ -156,6 +156,7 @@ const Chat = ({
               content: msg.data.content,
               timeserial: msg.id,
               timeStamp: new Date(msg.timestamp),
+              reactions: [],
             },
           ]);
           break;

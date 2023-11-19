@@ -1,4 +1,4 @@
-const defaultMessages: Message[] = [
+const defaultMessages = [
   {
     author: "Charles Lovelace",
     content:

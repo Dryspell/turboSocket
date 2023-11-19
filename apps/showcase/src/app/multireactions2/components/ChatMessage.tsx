@@ -2,13 +2,14 @@
 
 import { useAbly, useChannel } from "ably/react";
 import { useEffect, useState } from "react";
-import defaultMessages, { EmojiUsage, Message } from "~/utils/messageData";
+import defaultMessages from "~/utils/messageData";
 import { ArrowPathIcon, FaceSmileIcon } from "@heroicons/react/24/solid";
 import { Types } from "ably";
 
-import styles from "./styles.module.css";
+import styles from "../styles.module.css";
+import EmojiDisplay from "./EmojiDisplay";
 
-const Chat = ({
+const ChatMessage = ({
   channelName,
   clientId,
 }: {
@@ -26,7 +27,6 @@ const Chat = ({
 
   const ADD_REACTION_EVENT = "add-reaction";
   const REMOVE_REACTION_EVENT = "remove-reaction";
-  const SEND_EVENT = "send";
 
   const [addEmoji, setAddEmoji] = useState(true);
 
@@ -44,16 +44,6 @@ const Chat = ({
       clientId: string;
     }) => {
       switch (msg.name) {
-        case SEND_EVENT:
-          // 💡 Reset emoji reactions when a new message is received 💡
-          usedEmojiCollection = [];
-          setChatMessage({
-            author: msg.data.author,
-            content: msg.data.content,
-            timeserial: msg.id,
-            timeStamp: new Date(msg.timestamp),
-          });
-          break;
         case REMOVE_REACTION_EVENT:
           // 💡 Remove emoji reaction from chat message 💡
           const msgReactions = updateEmojiCollection(
@@ -69,14 +59,6 @@ const Chat = ({
       }
     },
   );
-
-  // 💡 Publish new chat message to channel 💡
-  const sendMessage = () => {
-    const message =
-      defaultMessages[Math.floor(Math.random() * defaultMessages.length)];
-    channel.publish(SEND_EVENT, message);
-    console.log(`Sent message: ${message?.content}`);
-  };
 
   // 💡 Publish emoji reaction for a message using the chat message timeserial 💡
   const sendMessageReaction = (
@@ -230,115 +212,83 @@ const Chat = ({
   }, []);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.uiWrapper}>
-        <div className={styles.instructions}>
-          <p>
-            Open this page in a few windows and add a reaction to the message to
-            see it update everywhere.
-          </p>
-        </div>
-
-        {/* Display default chat message */}
-        {chatMessage.author ? (
-          <div className={styles.author}>
-            <div className={styles.authorFlex}>
-              <img className={styles.authorAvatar} role="presentation"></img>
-              <div>
-                <p className={styles.authorName}>
-                  {chatMessage.author}
-                  <span className={styles.authorTimestamp}>
-                    {formatChatMessageTime(chatMessage.timeStamp!)}
-                  </span>
-                </p>
-                <p className={styles.message}>{chatMessage.content}</p>
-              </div>
-            </div>
-
-            {/* Display chat message emoji reactions and count */}
-            <div className={styles.emojiWrapper}>
-              {chatMessage.reactions?.length ? (
-                <ul className={styles.emojiList}>
-                  {chatMessage.reactions?.map((reaction) =>
-                    reaction.usedBy.length ? (
-                      <li
-                        key={reaction.emoji}
-                        className={`${styles.emojiListItem} ${
-                          reaction.usedBy.includes(clientId)
-                            ? styles.emojiListItemBlue
-                            : styles.emojiListItemSlate
-                        }`}
-                        onClick={() =>
-                          handleEmojiCount(
-                            reaction.emoji,
-                            chatMessage.timeserial,
-                          )
-                        }
-                      >
-                        <EmojiDisplay emoji={reaction.emoji} />
-                        <span className={styles.emojiListItemSpan}>
-                          {reaction.usedBy.length}
-                        </span>
-                      </li>
-                    ) : null,
-                  )}
-                </ul>
-              ) : null}
-
-              {/* Allow user to select and add an emoji reaction */}
-              <div className={styles.controls}>
-                <div className={styles.control}>
-                  <FaceSmileIcon
-                    className={styles.controlIcon}
-                    onClick={() => setShowEmojiList(!showEmojiList)}
-                  />
-                </div>
-                {showEmojiList ? (
-                  <ul className={styles.controlEmojiList}>
-                    {emojis.map((emoji) => (
-                      <li
-                        key={emoji}
-                        className={styles.controlEmojiListItem}
-                        onClick={() =>
-                          sendMessageReaction(
-                            emoji,
-                            chatMessage.timeserial,
-                            ADD_REACTION_EVENT,
-                          )
-                        }
-                      >
-                        <EmojiDisplay emoji={emoji} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+    <>
+      {/* Display default chat message */}
+      {chatMessage.author ? (
+        <div className={styles.author}>
+          <div className={styles.authorFlex}>
+            <img className={styles.authorAvatar} role="presentation"></img>
+            <div>
+              <p className={styles.authorName}>
+                {chatMessage.author}
+                <span className={styles.authorTimestamp}>
+                  {formatChatMessageTime(chatMessage.timeStamp!)}
+                </span>
+              </p>
+              <p className={styles.message}>{chatMessage.content}</p>
             </div>
           </div>
-        ) : null}
 
-        {/* Load new chat message */}
-        <div className={styles.newMessage}>
-          <button className={styles.newMessageButton} onClick={sendMessage}>
-            <ArrowPathIcon className={styles.newMessageButtonIcon} />
-            <span className={styles.newMessageButtonText}>New message</span>
-          </button>
+          {/* Display chat message emoji reactions and count */}
+          <div className={styles.emojiWrapper}>
+            {chatMessage.reactions?.length ? (
+              <ul className={styles.emojiList}>
+                {chatMessage.reactions?.map((reaction) =>
+                  reaction.usedBy.length ? (
+                    <li
+                      key={reaction.emoji}
+                      className={`${styles.emojiListItem} ${
+                        reaction.usedBy.includes(clientId)
+                          ? styles.emojiListItemBlue
+                          : styles.emojiListItemSlate
+                      }`}
+                      onClick={() =>
+                        handleEmojiCount(reaction.emoji, chatMessage.timeserial)
+                      }
+                    >
+                      <EmojiDisplay emoji={reaction.emoji} />
+                      <span className={styles.emojiListItemSpan}>
+                        {reaction.usedBy.length}
+                      </span>
+                    </li>
+                  ) : null,
+                )}
+              </ul>
+            ) : null}
+
+            {/* Allow user to select and add an emoji reaction */}
+            <div className={styles.controls}>
+              <div className={styles.control}>
+                <FaceSmileIcon
+                  className={styles.controlIcon}
+                  onClick={() => setShowEmojiList(!showEmojiList)}
+                />
+              </div>
+              {showEmojiList ? (
+                <ul className={styles.controlEmojiList}>
+                  {emojis.map((emoji) => (
+                    <li
+                      key={emoji}
+                      className={styles.controlEmojiListItem}
+                      onClick={() =>
+                        sendMessageReaction(
+                          emoji,
+                          chatMessage.timeserial,
+                          ADD_REACTION_EVENT,
+                        )
+                      }
+                    >
+                      <EmojiDisplay emoji={emoji} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      ) : null}
+    </>
   );
 };
 
-// 💡 Use twemoji for consistency in emoji display across platforms 💡
-const EmojiDisplay = ({ emoji }: { emoji: string }) => {
-  const codePoint = emoji.codePointAt(0)?.toString(16);
-  return (
-    <img
-      alt={emoji}
-      className={styles.emojiIcon}
-      src={`https://twemoji.maxcdn.com/v/latest/svg/${codePoint}.svg`}
-    />
-  );
-};
-
-export default Chat;
+export default ChatMessage;

@@ -4,11 +4,11 @@ interface EmojiUsage {
 }
 
 interface Message {
-  author?: string;
-  content?: string;
-  timeserial?: string;
-  reactions?: EmojiUsage[];
-  timeStamp?: Date;
+  author: string;
+  content: string;
+  timeserial: string;
+  reactions: EmojiUsage[];
+  timeStamp: Date;
 }
 
 interface Reaction {
