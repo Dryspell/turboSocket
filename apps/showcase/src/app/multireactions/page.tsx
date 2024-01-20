@@ -6,13 +6,14 @@ import { ArrowPathIcon, FaceSmileIcon } from "@heroicons/react/24/solid";
 import { Types } from "ably";
 import styles from "./styles.module.css";
 import ChatMessage from "./components/ChatMessage";
-import { Box, Container } from "@mui/material";
+import { Box, Container, Stack } from "@mui/material";
 import {
   sendMessage,
   updateEmojiCollection,
   updateMessageFromHistory,
 } from "./utils/utils";
 import { Message, MessageEvent, ReactionEvent } from "~/types/chat";
+import NewChatInput from "./components/NewChatInput";
 
 export const ADD_REACTION_EVENT = "add-reaction";
 export const REMOVE_REACTION_EVENT = "remove-reaction";
@@ -21,7 +22,7 @@ export const SEND_EVENT = "send";
 const chatBoxStyle = {
   margin: "auto",
   width: "600px",
-  height: "600px",
+  height: "1000px",
   marginY: 2,
   overflowY: "auto",
   scrollbarWidth: "thin",
@@ -37,7 +38,7 @@ const chatBoxStyle = {
   "&::-webkit-scrollbar-thumb:hover": {
     background: "#555",
   },
-};
+} as const;
 
 const Chat = ({
   channelName,
@@ -145,16 +146,22 @@ const Chat = ({
         ))}
       </Box>
 
-      {/* Load new chat message */}
-      <div className={styles.newMessage}>
-        <button
-          className={styles.newMessageButton}
-          onClick={() => sendMessage(channel)}
-        >
-          <ArrowPathIcon className={styles.newMessageButtonIcon} />
-          <span className={styles.newMessageButtonText}>New message</span>
-        </button>
-      </div>
+      <Stack spacing={2}>
+        {/* Load new chat message */}
+        <div className={styles.newMessage}>
+          <button
+            className={styles.newMessageButton}
+            onClick={() => sendMessage(channel)}
+          >
+            <ArrowPathIcon className={styles.newMessageButtonIcon} />
+            <span className={styles.newMessageButtonText}>
+              Generate Random Message
+            </span>
+          </button>
+        </div>
+
+        <NewChatInput channel={channel} author={clientId} />
+      </Stack>
     </Container>
   );
 };

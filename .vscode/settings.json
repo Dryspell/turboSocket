@@ -20,8 +20,8 @@
   },
   "peacock.color": "#dd0531",
   "editor.codeActionsOnSave": {
-    "source.fixAll": true,
-    "source.fixAll.eslint": true
+    "source.fixAll": "explicit",
+    "source.fixAll.eslint": "explicit"
   },
   "editor.quickSuggestions": {
     "other": "on",
@@ -29,5 +29,8 @@
     "strings": "off"
   },
   "terminal.integrated.fontFamily": "Monaco, 'Courier New', monospace",
-  "terminal.integrated.fontWeightBold": "bold"
+  "terminal.integrated.fontWeightBold": "bold",
+  "cSpell.words": [
+    "timeserial"
+  ]
 }

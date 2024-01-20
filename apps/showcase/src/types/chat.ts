@@ -1,3 +1,4 @@
+import { Types } from "ably";
 import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT, SEND_EVENT } from "~/app/multireactions/page";
 
 export type EmojiUsage = {
@@ -22,7 +23,7 @@ export type MessageEvent = {
   connectionId: string;
 };
 
-export type ReactionEvent = {
+export interface ReactionEvent extends Types.Message {
   data: {
     body: string;
     extras: {

@@ -2,6 +2,7 @@ import defaultMessages from "~/utils/messageData";
 import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT, SEND_EVENT } from "../page";
 import { Types } from "ably";
 import { EmojiUsage, Message, ReactionEvent } from "~/types/chat";
+import { includes } from "~/types/utils";
 
 // 💡 Publish new chat message to channel 💡
 export const sendMessage = (
@@ -42,6 +43,9 @@ export const updateEmojiCollection = (
   setChatMessages((chatMessages) => newChatMessages);
 };
 
+const isReactionEvent = (event: Types.Message): event is ReactionEvent =>
+  includes([ADD_REACTION_EVENT, REMOVE_REACTION_EVENT], event.name);
+
 // 💡 Update current chat message and its reactions leveraging Ably channel history 💡
 export const updateMessageFromHistory = (
   messageIndex: number,
@@ -54,30 +58,28 @@ export const updateMessageFromHistory = (
   // 💡 Get reactions of the published message 💡
   if (messageIndex > 0) {
     for (let i = messageIndex - 1; i >= 0; i--) {
-      const emoji = history?.items[i]?.data.body;
-      const client = history?.items[i]?.clientId;
-      const event = history?.items[i]?.name;
+      const reactionEvent = isReactionEvent(history?.items[i]!)
+        ? history?.items[i]
+        : null;
+      if (!reactionEvent || !isReactionEvent(reactionEvent)) continue;
+
+      const emoji = reactionEvent.data.body;
+      const client = reactionEvent?.clientId;
+      const event = reactionEvent?.name;
       if (!emoji || !client || !event) continue;
+
       const targetMessage = chatMessages.find(
         (message) =>
-          message.id === history?.items[i]?.data.extras.reference.timeserial,
+          message.id === reactionEvent?.data.extras.reference.timeserial,
       );
       if (!targetMessage) continue;
 
       if ((targetMessage?.reactions || []).length > 0) {
         for (const usage of targetMessage?.reactions!) {
-          updateEmojiCollection(
-            history?.items[i]!,
-            chatMessages,
-            setChatMessages,
-          );
+          updateEmojiCollection(reactionEvent, chatMessages, setChatMessages);
         }
       } else {
-        updateEmojiCollection(
-          history?.items[i]!,
-          chatMessages,
-          setChatMessages,
-        );
+        updateEmojiCollection(reactionEvent, chatMessages, setChatMessages);
       }
     }
   }
@@ -115,4 +117,42 @@ export const addRemoveReactionByEvent = (
       }
       break;
   }
+};
+
+
+// 💡 Format chat message timestamp to readable format 💡
+export const formatChatMessageTime = (timestamp: Date) => {
+  const hour = timestamp.getHours();
+  const minutes = `${
+    timestamp.getMinutes() < 10 ? "0" : ""
+  }${timestamp.getMinutes()}`;
+  return `${hour}:${minutes}`;
+};
+
+// 💡 Publish emoji reaction for a message using the chat message timeserial 💡
+export const sendMessageReaction = (
+  emoji: string,
+  timeserial: string,
+  reactionEventType: typeof ADD_REACTION_EVENT | typeof REMOVE_REACTION_EVENT,
+  channel: Types.RealtimeChannelPromise,
+  setShowEmojiList: React.Dispatch<React.SetStateAction<boolean>>,
+  clientId: string,
+  chatMessages: Message[],
+  setChatMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+) => {
+  const reactionEvent = {
+    name: reactionEventType,
+    clientId,
+    data: {
+      body: emoji,
+      extras: {
+        reference: { type: "com.ably.reaction" as const, timeserial },
+      },
+    },
+  } as ReactionEvent;
+  channel.publish(reactionEventType, reactionEvent.data);
+  setShowEmojiList((prev) => false);
+  updateEmojiCollection(reactionEvent, chatMessages, setChatMessages);
+
+  console.log(`${reactionEventType}: ${emoji}`);
 };

@@ -5,9 +5,7 @@ import { AblyTokenResponse } from "~/types/ably";
 
 export const runtime = "edge";
 
-async function handler() {
-  const user = { id: "peterPan123" }; // await currentUser();
-
+async function handler(request: Request) {
   if (!env.ABLY_API_KEY) {
     return new Response(
       `Missing ABLY_API_KEY environment variable.
@@ -25,6 +23,15 @@ async function handler() {
   }
 
   const keyName = env.ABLY_API_KEY.split(":")[0];
+
+  const { searchParams } = new URL(request.url);
+  const user = {
+    id: `${
+      searchParams.get("user") ||
+      `Anonymous ${Math.random().toString().substring(2, 15)}`
+    }`,
+  };
+  console.log(`Authorizing Ably token request for user ${user?.id}`);
 
   const tokenResponse = await fetch(
     `https://rest.ably.io/keys/${keyName}/requestToken`,
