@@ -1,8 +1,8 @@
 import defaultMessages from "~/utils/messageData";
-import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT, SEND_EVENT } from "../page";
 import { Types } from "ably";
 import { EmojiUsage, Message, ReactionEvent } from "~/types/chat";
 import { includes } from "~/types/utils";
+import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT, SEND_EVENT } from "./constants";
 
 // 💡 Publish new chat message to channel 💡
 export const sendMessage = (

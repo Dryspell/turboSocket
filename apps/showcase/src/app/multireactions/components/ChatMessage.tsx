@@ -1,11 +1,11 @@
 import { useState } from "react";
 import EmojiDisplay from "./EmojiDisplay";
-import styles from "../styles.module.css";
-import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT } from "../page";
+import styles from "./styles.module.css";
 import { useChannel } from "ably/react";
 import { Message } from "~/types/chat";
 import { formatChatMessageTime, sendMessageReaction } from "../utils/utils";
 import EmojiReactionSelector from "./EmojiReactionSelector";
+import { ADD_REACTION_EVENT, REMOVE_REACTION_EVENT } from "../utils/constants";
 
 export default function ChatMessage(props: {
   message: Message;

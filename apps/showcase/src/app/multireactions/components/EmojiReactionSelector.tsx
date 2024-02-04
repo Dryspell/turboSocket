@@ -1,10 +1,9 @@
 import EmojiDisplay from "./EmojiDisplay";
-import styles from "../styles.module.css";
+import styles from "./styles.module.css";
 import { Types } from "ably";
-import { ADD_REACTION_EVENT } from "../page";
 import { FaceSmileIcon } from "@heroicons/react/24/solid";
 import { Message } from "~/types/chat";
-import { emojis } from "../utils/constants";
+import { ADD_REACTION_EVENT, emojis } from "../utils/constants";
 import { sendMessageReaction } from "../utils/utils";
 
 export default function EmojiReactionSelector(props: {

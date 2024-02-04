@@ -1,5 +1,5 @@
 import Image from "next/image";
-import styles from "../styles.module.css";
+import styles from "./styles.module.css";
 
 // 💡 Use twemoji for consistency in emoji display across platforms 💡
 export default function EmojiDisplay({ emoji }: { emoji: string }) {
